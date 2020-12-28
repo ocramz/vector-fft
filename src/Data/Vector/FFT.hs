@@ -1,6 +1,7 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# language BangPatterns        #-}
 {-# language LambdaCase          #-}
-
+{-# options_ghc -Wno-unused-imports #-}
 module Data.Vector.FFT where
 
 import Control.Monad (when)
@@ -11,9 +12,9 @@ import Data.Bits (shiftR,shiftL,(.&.),(.|.))
 import Data.Bool (Bool,otherwise)
 import Data.Complex (Complex(..),conjugate)
 
-import Data.Vector.Unboxed as V (Vector, Unbox(..), map, length, unsafeFreeze)
-import qualified Data.Vector.Unboxed.Mutable as VM (read, write, copy, new)
-
+import Data.Vector.Unboxed as V (Vector, Unbox, map, length, unsafeFreeze)
+import qualified Data.Vector.Unboxed.Mutable as VM (MVector, read, write, new, length)
+import qualified Data.Vector.Generic as VG (Vector(..), copy)
 
 import Prelude hiding (read)
 
@@ -22,37 +23,40 @@ import Prelude hiding (read)
 "ifft/fft" forall x. ifft (fft x) = x
   #-}
 
+
 -- | Radix-2 decimation-in-time fast Fourier Transform.
 --   The given array must have a length that is a power of two.
-
-{-# inlinable [1] fft #-}
+fft :: Vector (Complex Double) -> Vector (Complex Double)
 fft arr = if arrOK arr
   then runST $ do {
       marr <- copyWhole arr
     ; mfft marr
     ; V.unsafeFreeze marr
   }
-  else Prelude.error "Data.Vector.FFT.fft: bad array length"
+  else error "Data.Vector.FFT.fft: bad array length"
+{-# inlinable [1] fft #-}
 
 -- | Inverse fast Fourier transform.
-
-{-# inlinable [1] ifft #-}
+ifft :: Vector (Complex Double) -> Vector (Complex Double)
 ifft arr = if arrOK arr
   then
     let lenComplex = intToComplexDouble (V.length arr)
     in cmap ((/ lenComplex) . conjugate) . fft . cmap conjugate $ arr
   else error "Data.Vector.FFT.ifft: bad vector length"
+{-# inlinable [1] ifft #-}  
 
 
-{-# inline copyWhole #-}
+-- {-# inline copyWhole #-}
+copyWhole :: (PrimMonad m, VG.Vector Vector a, Unbox a) => V.Vector a -> m (VM.MVector (PrimState m) a)
 copyWhole arr = do
   let len = V.length arr
   marr <- VM.new len
-  VM.copy marr arr
+  VG.copy marr arr
   pure marr
 
 
 {-# inline arrOK #-}
+arrOK :: Unbox a => Vector a -> Bool
 arrOK arr =
   let n = V.length arr
   in (1 `shiftL` log2 n) == n
@@ -60,9 +64,9 @@ arrOK arr =
 -- | Radix-2 decimation-in-time fast Fourier Transform.
 --   The given array must have a length that is a power of two,
 --   though this property is not checked.
-
+mfft :: (PrimMonad m) => VM.MVector (PrimState m) (Complex Double) -> m ()
 mfft mut = do {
-    let len = V.length mut
+    let len = VM.length mut
   ; let bitReverse !i !j = do {
           ; if i == len - 1
               then stage 0 1
@@ -87,9 +91,9 @@ mfft mut = do {
                               else do {
                                   let i1 = i + l1
                                 ; xi1 :+ yi1 <- VM.read mut i1
-                                ; let !c = cos a
-                                      !s = sin a
-                                      d = (c*xi1 - s*yi1) :+ (s*xi1 + c*yi1)
+                                ; let !co = cos a
+                                      !si = sin a
+                                      d = (co * xi1 - si * yi1) :+ (si * xi1 + co * yi1)
                                 ; ci <- VM.read mut i
                                 ; VM.write mut i1 (ci - d)
                                 ; VM.write mut i (ci + d)
@@ -123,6 +127,8 @@ log2 v0 = if v0 <= 0
 
 
 {-# inline swap #-}
+swap :: (PrimMonad m, Unbox a) =>
+        VM.MVector (PrimState m) a -> Int -> Int -> m ()
 swap mut i j = do
   atI <- VM.read mut i
   atJ <- VM.read mut j
@@ -147,4 +153,5 @@ intToComplexDouble = fromIntegral
 
 
 {-# inline cmap #-}
+cmap :: (Floating a, Unbox a) => (Complex a -> Complex a) -> V.Vector (Complex a) -> V.Vector (Complex a)
 cmap = V.map

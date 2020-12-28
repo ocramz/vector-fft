@@ -1,7 +1,7 @@
 name:                vector-fft
 version:             0.1.0.0
 synopsis:            Native FFT and IFFT for vector
--- description:
+description:         Native FFT and IFFT for vector, ported from contiguous-fft
 homepage:            https://github.com/ocramz/vector-fft
 license:             BSD3
 license-file:        LICENSE
