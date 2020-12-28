@@ -12,7 +12,7 @@ category:            Numeric
 build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
-tested-with:         GHC == 7.10.2
+tested-with:         GHC == 8.8.4
 
 library
   default-language:    Haskell2010
@@ -31,16 +31,16 @@ library
 --   build-depends:       base
 --                      , vector-fft
 
-test-suite spec
-  default-language:    Haskell2010
-  ghc-options:         -Wall
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
-  main-is:             Spec.hs
-  build-depends:       base
-                     , vector-fft
-                     , hspec
-                     , QuickCheck
+-- test-suite spec
+--   default-language:    Haskell2010
+--   ghc-options:         -Wall
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      test
+--   main-is:             Spec.hs
+--   build-depends:       base
+--                      , vector-ffts
+--                      , hspec
+--                      , QuickCheck
 
 source-repository head
   type:     git

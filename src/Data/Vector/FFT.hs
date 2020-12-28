@@ -13,7 +13,7 @@ import Data.Bool (Bool,otherwise)
 import Data.Complex (Complex(..),conjugate)
 import Data.Foldable (forM_)
 
-import Data.Vector.Unboxed as V (Vector, Unbox, map, length, unsafeFreeze)
+import Data.Vector.Unboxed as V (Vector, Unbox, map, length, unsafeFreeze, (!))
 import qualified Data.Vector.Unboxed.Mutable as VM (MVector, read, write, new, length)
 import qualified Data.Vector.Generic as VG (Vector(..), copy)
 
@@ -24,29 +24,24 @@ import Prelude hiding (read)
 "ifft/fft" forall x. ifft (fft x) = x
   #-}
 
-
--- FIXME pad with 0s to next power of two rather than throwing an error
-
 -- | Radix-2 decimation-in-time fast Fourier Transform.
---   The given array must have a length that is a power of two.
+--
+--   The given array is zero-padded to the next power of two if necessary, and the output array will have corresponding length.
 fft :: Vector (Complex Double) -> Vector (Complex Double)
-fft arr = if arrOK arr
-  then runST $ do {
-      marr <- copyWhole arr
-    ; mfft marr
-    ; V.unsafeFreeze marr
-  }
-  else error "Data.Vector.FFT.fft: bad array length"
+fft arr = runST $ do
+  marr <- copyPadded arr
+  mfft marr
+  V.unsafeFreeze marr
 {-# inlinable [1] fft #-}
 
 -- | Inverse fast Fourier transform.
+--
+--   The given array is zero-padded to the next power of two if necessary, and the output array will have corresponding length.
 ifft :: Vector (Complex Double) -> Vector (Complex Double)
-ifft arr = if arrOK arr
-  then
-    let lenComplex = intToComplexDouble (V.length arr)
-    in cmap ((/ lenComplex) . conjugate) . fft . cmap conjugate $ arr
-  else error "Data.Vector.FFT.ifft: bad vector length"
-{-# inlinable [1] ifft #-}  
+ifft arr = do
+  let lenComplex = intToComplexDouble (V.length arr)
+  cmap ((/ lenComplex) . conjugate) . fft . cmap conjugate $ arr
+{-# inlinable [1] ifft #-}
 
 
 {-# inline copyWhole #-}
@@ -57,17 +52,18 @@ copyWhole arr = do
   VG.copy marr arr
   pure marr
 
--- | Copy the source vector into a zero-padded
+-- | Copy the source vector into a zero-padded mutable one
 copyPadded :: (PrimMonad m, Num a, Unbox a) =>
               Vector a -> m (VM.MVector (PrimState m) a)
 copyPadded arr = do
   let
     len = V.length arr
     l2 = nextPow2 len
-    d = l2 - len -- length difference to next power of two
   marr <- VM.new l2
-  VG.copy marr arr
-  forM_ [len .. l2] (\i -> VM.write marr i 0)
+  forM_ [0 .. l2 - 1] $ \i -> do
+    let x | i < len - 1 = arr V.! i
+          | otherwise = 0
+    VM.write marr i x
   pure marr
 {-# inline copyPadded #-}
 
