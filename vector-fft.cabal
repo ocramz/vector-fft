@@ -1,5 +1,5 @@
 name:                vector-fft
-version:             0.1.0.1
+version:             0.1.0.2
 synopsis:            Native FFT and IFFT for vector
 description:         Native Fast Fourier Transform and Inverse Fast Fourier Transform for vector, with minimal dependencies.
 homepage:            https://github.com/ocramz/vector-fft
@@ -11,6 +11,7 @@ copyright:           2020 chessai, ocramz
 category:            Numeric
 build-type:          Simple
 extra-source-files:  README.md
+                     CHANGELOG.md
 cabal-version:       >=1.10
 tested-with:         GHC == 8.8.4
 

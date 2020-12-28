@@ -2,7 +2,11 @@
 {-# language BangPatterns        #-}
 {-# language LambdaCase          #-}
 {-# options_ghc -Wno-unused-imports #-}
-module Data.Vector.FFT (fft, ifft) where
+module Data.Vector.FFT (
+  fft, ifft
+  -- * Useful results
+  , crossCorrelation
+  ) where
 
 import Control.Monad (when)
 import Control.Monad.Primitive (PrimMonad(..))
@@ -13,7 +17,7 @@ import Data.Bool (Bool,otherwise)
 import Data.Complex (Complex(..),conjugate)
 import Data.Foldable (forM_)
 
-import Data.Vector.Unboxed as V (Vector, Unbox, map, length, unsafeFreeze, (!))
+import Data.Vector.Unboxed as V (Vector, Unbox, map, zipWith, length, unsafeFreeze, (!))
 import qualified Data.Vector.Unboxed.Mutable as VM (MVector, read, write, new, length)
 import qualified Data.Vector.Generic as VG (Vector(..), copy)
 
@@ -23,6 +27,23 @@ import Prelude hiding (read)
 "fft/ifft" forall x. fft (ifft x) = x
 "ifft/fft" forall x. ifft (fft x) = x
   #-}
+
+
+-- | (Circular) cross-correlation of two vectors
+--
+-- Defined via the FFT and IFFT for computational efficiency
+--
+-- NB the source vectors should have matching length for meaningful results
+crossCorrelation :: Vector (Complex Double)
+                 -> Vector (Complex Double)
+                 -> Vector (Complex Double)
+crossCorrelation v1 v2 = ifft $ (cmap conjugate v1hat) `prod` v2hat
+  where
+    prod = V.zipWith (*)
+    v1hat = fft v1
+    v2hat = fft v2
+
+
 
 -- | Radix-2 decimation-in-time fast Fourier Transform.
 --
