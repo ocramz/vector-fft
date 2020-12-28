@@ -1,7 +1,7 @@
 name:                vector-fft
-version:             0.1.0.0
+version:             0.1.0.1
 synopsis:            Native FFT and IFFT for vector
-description:         Native FFT and IFFT for vector, ported from contiguous-fft
+description:         Native Fast Fourier Transform and Inverse Fast Fourier Transform for vector, with minimal dependencies.
 homepage:            https://github.com/ocramz/vector-fft
 license:             BSD3
 license-file:        LICENSE
@@ -44,4 +44,4 @@ library
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/vector-fft
+  location: https://github.com/ocramz/vector-fft
