@@ -11,6 +11,7 @@ import Control.Monad.ST (runST)
 import Data.Bits (shiftR,shiftL,(.&.),(.|.))
 import Data.Bool (Bool,otherwise)
 import Data.Complex (Complex(..),conjugate)
+import Data.Foldable (forM_)
 
 import Data.Vector.Unboxed as V (Vector, Unbox, map, length, unsafeFreeze)
 import qualified Data.Vector.Unboxed.Mutable as VM (MVector, read, write, new, length)
@@ -23,6 +24,8 @@ import Prelude hiding (read)
 "ifft/fft" forall x. ifft (fft x) = x
   #-}
 
+
+-- FIXME pad with 0s to next power of two rather than throwing an error
 
 -- | Radix-2 decimation-in-time fast Fourier Transform.
 --   The given array must have a length that is a power of two.
@@ -46,7 +49,7 @@ ifft arr = if arrOK arr
 {-# inlinable [1] ifft #-}  
 
 
--- {-# inline copyWhole #-}
+{-# inline copyWhole #-}
 copyWhole :: (PrimMonad m, VG.Vector Vector a, Unbox a) => V.Vector a -> m (VM.MVector (PrimState m) a)
 copyWhole arr = do
   let len = V.length arr
@@ -54,12 +57,27 @@ copyWhole arr = do
   VG.copy marr arr
   pure marr
 
+-- | Copy the source vector into a zero-padded
+copyPadded :: (PrimMonad m, Num a, Unbox a) =>
+              Vector a -> m (VM.MVector (PrimState m) a)
+copyPadded arr = do
+  let
+    len = V.length arr
+    l2 = nextPow2 len
+    d = l2 - len -- length difference to next power of two
+  marr <- VM.new l2
+  VG.copy marr arr
+  forM_ [len .. l2] (\i -> VM.write marr i 0)
+  pure marr
+{-# inline copyPadded #-}
 
 {-# inline arrOK #-}
 arrOK :: Unbox a => Vector a -> Bool
 arrOK arr =
   let n = V.length arr
   in (1 `shiftL` log2 n) == n
+
+
 
 -- | Radix-2 decimation-in-time fast Fourier Transform.
 --   The given array must have a length that is a power of two,
@@ -112,6 +130,13 @@ b = \case { 0 -> 0x02; 1 -> 0x0c; 2 -> 0xf0; 3 -> 0xff00; 4 -> wordToInt 0xffff0
 s = \case { 0 -> 1; 1 -> 2; 2 -> 4; 3 -> 8; 4 -> 16; 5 -> 32; _ -> 0; }
 {-# inline b #-}
 {-# inline s #-}
+
+-- | Next power of 2
+nextPow2 :: Int -> Int
+nextPow2 n
+  | mod n 2 == 0 = n
+  | otherwise = (2 :: Int) ^ (log2 n + 1)
+
 
 log2 :: Int -> Int
 log2 v0 = if v0 <= 0
