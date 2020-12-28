@@ -2,7 +2,7 @@
 {-# language BangPatterns        #-}
 {-# language LambdaCase          #-}
 {-# options_ghc -Wno-unused-imports #-}
-module Data.Vector.FFT where
+module Data.Vector.FFT (fft, ifft) where
 
 import Control.Monad (when)
 import Control.Monad.Primitive (PrimMonad(..))
@@ -26,7 +26,7 @@ import Prelude hiding (read)
 
 -- | Radix-2 decimation-in-time fast Fourier Transform.
 --
---   The given array is zero-padded to the next power of two if necessary, and the output array will have corresponding length.
+--   The given array (and therefore the output as well) is zero-padded to the next power of two if necessary.
 fft :: Vector (Complex Double) -> Vector (Complex Double)
 fft arr = runST $ do
   marr <- copyPadded arr
@@ -36,7 +36,7 @@ fft arr = runST $ do
 
 -- | Inverse fast Fourier transform.
 --
---   The given array is zero-padded to the next power of two if necessary, and the output array will have corresponding length.
+--   The given array (and therefore the output as well) is zero-padded to the next power of two if necessary.
 ifft :: Vector (Complex Double) -> Vector (Complex Double)
 ifft arr = do
   let lenComplex = intToComplexDouble (V.length arr)
@@ -44,13 +44,7 @@ ifft arr = do
 {-# inlinable [1] ifft #-}
 
 
-{-# inline copyWhole #-}
-copyWhole :: (PrimMonad m, VG.Vector Vector a, Unbox a) => V.Vector a -> m (VM.MVector (PrimState m) a)
-copyWhole arr = do
-  let len = V.length arr
-  marr <- VM.new len
-  VG.copy marr arr
-  pure marr
+
 
 -- | Copy the source vector into a zero-padded mutable one
 copyPadded :: (PrimMonad m, Num a, Unbox a) =>
@@ -67,11 +61,7 @@ copyPadded arr = do
   pure marr
 {-# inline copyPadded #-}
 
-{-# inline arrOK #-}
-arrOK :: Unbox a => Vector a -> Bool
-arrOK arr =
-  let n = V.length arr
-  in (1 `shiftL` log2 n) == n
+
 
 
 
@@ -176,3 +166,20 @@ intToComplexDouble = fromIntegral
 {-# inline cmap #-}
 cmap :: (Floating a, Unbox a) => (Complex a -> Complex a) -> V.Vector (Complex a) -> V.Vector (Complex a)
 cmap = V.map
+
+
+--
+
+-- {-# inline copyWhole #-}
+-- copyWhole :: (PrimMonad m, VG.Vector Vector a, Unbox a) => V.Vector a -> m (VM.MVector (PrimState m) a)
+-- copyWhole arr = do
+--   let len = V.length arr
+--   marr <- VM.new len
+--   VG.copy marr arr
+--   pure marr
+
+-- {-# inline arrOK #-}
+-- arrOK :: Unbox a => Vector a -> Bool
+-- arrOK arr =
+--   let n = V.length arr
+--   in (1 `shiftL` log2 n) == n
