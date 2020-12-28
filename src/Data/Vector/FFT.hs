@@ -61,7 +61,7 @@ copyPadded arr = do
     l2 = nextPow2 len
   marr <- VM.new l2
   forM_ [0 .. l2 - 1] $ \i -> do
-    let x | i < len - 1 = arr V.! i
+    let x | i < len = arr V.! i
           | otherwise = 0
     VM.write marr i x
   pure marr
