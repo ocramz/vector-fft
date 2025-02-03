@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# language BangPatterns        #-}
 {-# language LambdaCase          #-}
+{-# language MagicHash           #-}
 {-# options_ghc -Wno-unused-imports #-}
 module Data.Vector.FFT (
   fft, ifft
@@ -12,21 +13,18 @@ import Control.Monad (when)
 import Control.Monad.Primitive (PrimMonad(..))
 
 import Control.Monad.ST (runST)
-import Data.Bits (shiftR,shiftL,(.&.),(.|.))
-import Data.Bool (Bool,otherwise)
-import Data.Complex (Complex(..),conjugate)
+import Data.Bits (finiteBitSize, shiftR, shiftL, (.&.), (.|.))
+import Data.Bool (Bool, otherwise)
+import Data.Complex (Complex(..), conjugate)
 import Data.Foldable (forM_)
 
 import Data.Vector.Unboxed as V (Vector, Unbox, map, zipWith, length, unsafeFreeze, (!))
 import qualified Data.Vector.Unboxed.Mutable as VM (MVector, read, write, new, length)
 import qualified Data.Vector.Generic as VG (Vector(..), copy)
 
-import Prelude hiding (read)
+import GHC.Exts
 
-{-# RULES
-"fft/ifft" forall x. fft (ifft x) = x
-"ifft/fft" forall x. ifft (fft x) = x
-  #-}
+import Prelude hiding (read)
 
 
 -- | (Circular) cross-correlation of two vectors
@@ -60,7 +58,7 @@ fft arr = runST $ do
 --   The given array (and therefore the output as well) is zero-padded to the next power of two if necessary.
 ifft :: Vector (Complex Double) -> Vector (Complex Double)
 ifft arr = do
-  let lenComplex = intToComplexDouble (V.length arr)
+  let lenComplex = intToComplexDouble (nextPow2 (V.length arr))
   cmap ((/ lenComplex) . conjugate) . fft . cmap conjugate $ arr
 {-# inlinable [1] ifft #-}
 
@@ -131,31 +129,16 @@ mfft mut = do {
   ; bitReverse 0 0
 }
 
--- wildcard cases should never happen. if they do, really bad things will happen.
-b,s :: Int -> Int
-b = \case { 0 -> 0x02; 1 -> 0x0c; 2 -> 0xf0; 3 -> 0xff00; 4 -> wordToInt 0xffff0000; 5 -> wordToInt 0xffffffff00000000; _ -> 0; }
-s = \case { 0 -> 1; 1 -> 2; 2 -> 4; 3 -> 8; 4 -> 16; 5 -> 32; _ -> 0; }
-{-# inline b #-}
-{-# inline s #-}
-
 -- | Next power of 2
 nextPow2 :: Int -> Int
 nextPow2 n
-  | mod n 2 == 0 = n
-  | otherwise = (2 :: Int) ^ (log2 n + 1)
+  -- `n .&. (n - 1)` clears the lowest set bit
+  | n .&. (n - 1) == 0 = n
+  | otherwise = 1 `shiftL` (log2 n + 1)
 
 
 log2 :: Int -> Int
-log2 v0 = if v0 <= 0
-  then error $ "Data.Vector.FFT: nonpositive input, got " ++ show v0
-  else go 5 0 v0
-  where
-    go !i !r !v
-      | i == -1 = r
-      | v .&. b i /= 0 =
-          let si = s i
-          in go (i - 1) (r .|. si) (v `shiftR` si)
-      | otherwise = go (i - 1) r v
+log2 (I# n#) = finiteBitSize (0 :: Int) - 1 - I# (word2Int# (clz# (int2Word# n#)))
 
 
 {-# inline swap #-}
@@ -175,10 +158,6 @@ intToDouble :: Int -> Double
 {-# inline intToDouble #-}
 intToDouble = fromIntegral
 
-wordToInt :: Word -> Int
-{-# inline wordToInt #-}
-wordToInt = fromIntegral
-
 intToComplexDouble :: Int -> Complex Double
 {-# inline intToComplexDouble #-}
 intToComplexDouble = fromIntegral
@@ -187,20 +166,3 @@ intToComplexDouble = fromIntegral
 {-# inline cmap #-}
 cmap :: (Floating a, Unbox a) => (Complex a -> Complex a) -> V.Vector (Complex a) -> V.Vector (Complex a)
 cmap = V.map
-
-
---
-
--- {-# inline copyWhole #-}
--- copyWhole :: (PrimMonad m, VG.Vector Vector a, Unbox a) => V.Vector a -> m (VM.MVector (PrimState m) a)
--- copyWhole arr = do
---   let len = V.length arr
---   marr <- VM.new len
---   VG.copy marr arr
---   pure marr
-
--- {-# inline arrOK #-}
--- arrOK :: Unbox a => Vector a -> Bool
--- arrOK arr =
---   let n = V.length arr
---   in (1 `shiftL` log2 n) == n
