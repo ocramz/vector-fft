@@ -13,7 +13,7 @@ import Control.Monad (when)
 import Control.Monad.Primitive (PrimMonad(..))
 
 import Control.Monad.ST (runST)
-import Data.Bits (finiteBitSize, shiftR, shiftL, (.&.), (.|.))
+import Data.Bits (countLeadingZeros, finiteBitSize, shiftR, shiftL, (.&.), (.|.))
 import Data.Bool (Bool, otherwise)
 import Data.Complex (Complex(..), conjugate)
 import Data.Foldable (forM_)
@@ -21,8 +21,6 @@ import Data.Foldable (forM_)
 import Data.Vector.Unboxed as V (Vector, Unbox, map, zipWith, length, unsafeFreeze, (!))
 import qualified Data.Vector.Unboxed.Mutable as VM (MVector, read, write, new, length)
 import qualified Data.Vector.Generic as VG (Vector(..), copy)
-
-import GHC.Exts
 
 import Prelude hiding (read)
 
@@ -126,7 +124,7 @@ mfft mut = do {
                     }
             ; flight 0 0
          }
-  ; bitReverse 0 0
+  ; when (len > 0) $ bitReverse 0 0
 }
 
 -- | Next power of 2
@@ -138,7 +136,7 @@ nextPow2 n
 
 
 log2 :: Int -> Int
-log2 (I# n#) = finiteBitSize (0 :: Int) - 1 - I# (word2Int# (clz# (int2Word# n#)))
+log2 n = finiteBitSize (0 :: Int) - 1 - countLeadingZeros n
 
 
 {-# inline swap #-}
