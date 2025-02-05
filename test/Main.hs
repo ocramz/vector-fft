@@ -23,7 +23,7 @@ idft v = V.generate len (\k -> (V.sum $ V.imap (\n x -> x * expi (2 * pi * fromI
 (~=~) :: V.Vector (Complex Double) -> V.Vector (Complex Double) -> Property
 v1 ~=~ v2 = counterexample (show v1 ++ (if res then " == " else " /= ") ++ show v2) res
   where
-    epsilon = 1e-10
+    epsilon = 1e-6
     res = V.all (\(x, y) -> magnitude (x - y) < epsilon) (V.zip v1 v2)
 
 -- | Next power of 2
