@@ -1,7 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# language BangPatterns        #-}
-{-# language LambdaCase          #-}
-{-# language MagicHash           #-}
+{-# language BangPatterns #-}
 {-# options_ghc -Wno-unused-imports #-}
 module Data.Vector.FFT (
   fft, ifft
