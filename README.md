@@ -1,6 +1,6 @@
 # vector-fft 
 
-[![Haskell CI](https://github.com/ocramz/vector-fft/actions/workflows/haskell.yaml/badge.svg)](https://github.com/ocramz/vector-fft/actions/workflows/haskell.yaml) ![Hackage](https://img.shields.io/hackage/v/vector-fft)
+[![Github Actions](https://github.com/ocramz/vector-fft/actions/workflows/haskell.yaml/badge.svg)](https://github.com/ocramz/vector-fft/actions/workflows/haskell.yaml) ![Hackage](https://img.shields.io/hackage/v/vector-fft)
 
 
 Native FFT and IFFT for `vector`.
