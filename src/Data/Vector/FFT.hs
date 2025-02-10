@@ -27,31 +27,35 @@ import Prelude hiding (read)
 -- Defined via the FFT and IFFT for computational efficiency.
 --
 -- NB: the source vectors should have matching length for meaningful results.
-crossCorrelation :: Vector (Complex Double) -> Vector (Complex Double) -> Vector (Complex Double)
+crossCorrelation :: (RealFloat a, Unbox a) => Vector (Complex a) -> Vector (Complex a) -> Vector (Complex a)
 crossCorrelation v1 v2 = ifft $ (cmap conjugate v1hat) `prod` v2hat
   where
     prod = V.zipWith (*)
     v1hat = fft v1
     v2hat = fft v2
+{-# specialize crossCorrelation :: Vector (Complex Double) -> Vector (Complex Double) -> Vector (Complex Double) #-}
+{-# specialize crossCorrelation :: Vector (Complex Float) -> Vector (Complex Float) -> Vector (Complex Float) #-}
 
 -- | Radix-2 decimation-in-time fast Fourier Transform.
 --
 --   The given array (and therefore the output as well) is zero-padded to the next power of two if necessary.
-fft :: Vector (Complex Double) -> Vector (Complex Double)
+fft :: (RealFloat a, Unbox a) => Vector (Complex a) -> Vector (Complex a)
 fft arr = runST $ do
   marr <- copyPadded arr
   mfft marr
   V.unsafeFreeze marr
-{-# inlinable [1] fft #-}
+{-# specialize fft :: Vector (Complex Double) -> Vector (Complex Double) #-}
+{-# specialize fft :: Vector (Complex Float) -> Vector (Complex Float) #-}
 
 -- | Inverse fast Fourier transform.
 --
 --   The given array (and therefore the output as well) is zero-padded to the next power of two if necessary.
-ifft :: Vector (Complex Double) -> Vector (Complex Double)
+ifft :: (RealFloat a, Unbox a) => Vector (Complex a) -> Vector (Complex a)
 ifft arr = do
-  let lenComplex = intToComplexDouble (nextPow2 (V.length arr))
+  let lenComplex = intToComplex (nextPow2 (V.length arr))
   cmap ((/ lenComplex) . conjugate) . fft . cmap conjugate $ arr
-{-# inlinable [1] ifft #-}
+{-# specialize ifft :: Vector (Complex Double) -> Vector (Complex Double) #-}
+{-# specialize ifft :: Vector (Complex Float) -> Vector (Complex Float) #-}
 
 -- | Copy the source vector into a zero-padded mutable one
 copyPadded :: (PrimMonad m, Num a, Unbox a) => Vector a -> m (VM.MVector (PrimState m) a)
@@ -63,7 +67,7 @@ copyPadded arr = do
 -- | Radix-2 decimation-in-time fast Fourier Transform.
 --   The given array must have a length that is a power of two,
 --   though this property is not checked.
-mfft :: (PrimMonad m) => VM.MVector (PrimState m) (Complex Double) -> m ()
+mfft :: (PrimMonad m, RealFloat a, Unbox a) => VM.MVector (PrimState m) (Complex a) -> m ()
 mfft mut = do
     let
       len = VM.length mut
@@ -84,7 +88,7 @@ mfft mut = do
         | l == (log2 len) = pure ()
         | otherwise = do
             let !l2 = l1 `shiftL` 1
-                !e = (-2 * pi) / (intToDouble l2)
+                !e = (-2 * pi) / (intToRealFloat l2)
                 flight j !a
                   | j == l1 = stage (l + 1) l2
                   | otherwise = do
@@ -116,13 +120,13 @@ log2 :: Int -> Int
 log2 n = finiteBitSize (0 :: Int) - 1 - countLeadingZeros n
 
 
-intToDouble :: Int -> Double
-{-# inline intToDouble #-}
-intToDouble = fromIntegral
+intToRealFloat :: (RealFloat a) => Int -> a
+{-# inline intToRealFloat #-}
+intToRealFloat = fromIntegral
 
-intToComplexDouble :: Int -> Complex Double
-{-# inline intToComplexDouble #-}
-intToComplexDouble = fromIntegral
+intToComplex :: (RealFloat a) => Int -> Complex a
+{-# inline intToComplex #-}
+intToComplex = fromIntegral
 
 
 {-# inline cmap #-}
